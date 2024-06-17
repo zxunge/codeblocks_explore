@@ -141,7 +141,7 @@ void cache_read(const char *path)
 		#if defined(_WIN64)
 		sscanf(buf, "%I64d %n", &timeval, &n);
 		#else
-		sscanf(buf, "%lld %n", &timeval, &n);
+		sscanf(buf, "%ld %n", &timeval, &n);
 		#endif
 		h = hdr_enter (buf + n);
 		h->time = timeval;
@@ -172,11 +172,13 @@ void cache_write(const char *path)
 		#if defined(_WIN64)
 		fprintf(f, "%I64d %s\n", h->time, h->file);
 		#else
-		fprintf(f, "%lld %s\n", h->time, h->file);
+		if (h->file != NULL && strlen(h->file) != 0)
+		    fprintf(f, "%ld %s\n", h->time, h->file);
 		#endif
 		for (l = h->includes; l; l = list_next (l))
 		{
-			fprintf(f, "\t%s\n", l->string);
+			if (l->string != NULL && strlen(l->string) != 0)
+			    fprintf(f, "\t%s\n", l->string);
 		}
 		fprintf(f, "\n");
 	}

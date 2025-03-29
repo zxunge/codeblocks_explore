@@ -33,9 +33,13 @@ class wxsPanel : public wxsContainer
 
     protected:
 
-        virtual wxObject* OnBuildPreview(wxWindow* Parent,long Flags);
+        virtual long OnGetPropertiesFlags()
+        {
+            return wxsContainer::OnGetPropertiesFlags() | flTopLevel;
+        }
+        virtual wxObject* OnBuildPreview(wxWindow* Parent,long _Flags);
         virtual void OnBuildCreatingCode();
-        virtual void OnEnumContainerProperties(long Flags);
+        virtual void OnEnumContainerProperties(long _Flags);
 };
 
 #endif

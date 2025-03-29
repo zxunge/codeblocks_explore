@@ -123,15 +123,15 @@ long wxsStdDialogButtonSizer::OnGetPropertiesFlags()
     return wxsItem::OnGetPropertiesFlags();
 }
 
-void wxsStdDialogButtonSizer::OnEnumItemProperties(cb_unused long Flags)
+void wxsStdDialogButtonSizer::OnEnumItemProperties(cb_unused long _Flags)
 {
 }
 
-wxObject* wxsStdDialogButtonSizer::OnBuildPreview(wxWindow* Parent,long PreviewFlags)
+wxObject* wxsStdDialogButtonSizer::OnBuildPreview(wxWindow* Parent,long _Flags)
 {
     wxWindow* NewParent = Parent;
 
-    if ( !(PreviewFlags & pfExact) )
+    if ( !(_Flags & pfExact) )
     {
         NewParent = new wxsSizerPreview(Parent);
     }
@@ -149,7 +149,7 @@ wxObject* wxsStdDialogButtonSizer::OnBuildPreview(wxWindow* Parent,long PreviewF
 
     Sizer->Realize();
 
-    if ( !(PreviewFlags & pfExact) )
+    if ( !(_Flags & pfExact) )
     {
         NewParent->SetSizer(Sizer);
         Sizer->Fit(NewParent);
@@ -177,7 +177,8 @@ void wxsStdDialogButtonSizer::OnBuildCreatingCode()
             AddHeader(_T("<wx/sizer.h>"),GetInfo().ClassName,hfInPCH);
             AddHeader(_T("<wx/button.h>"),GetInfo().ClassName,hfLocal);
 
-            if ( IsPointer() ) Codef(_T("%C();\n"));
+            if ( IsPointer() )
+                Codef(_T("%C();\n"));
 
             for ( int i=0; i<NumButtons; i++ )
             {
@@ -186,7 +187,11 @@ void wxsStdDialogButtonSizer::OnBuildCreatingCode()
                     Codef(_T("%AAddButton(new wxButton(%W, %v, %t));\n"),IdNames[i],m_Label[i].wx_str());
                 }
             }
+
             Codef(_T("%ARealize();\n"));
+            if ( m_Use[0] )
+                Codef(_T("dynamic_cast <wxButton *> (%W->FindWindow(%v))->SetDefault();\n"), IdNames[0]);
+
             break;
 
         }

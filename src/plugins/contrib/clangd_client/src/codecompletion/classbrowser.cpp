@@ -44,7 +44,7 @@
 
 #include "parser/ccdebuginfo.h"
 
-#include <stack>
+//unused-#include <stack>
 
 #define CC_CLASS_BROWSER_DEBUG_OUTPUT 0
 //(2021/06/3)
@@ -329,15 +329,8 @@ void ClassBrowser::SetParser(ParserBase* parser)
             filter = bdfProject;
 
         m_Parser->ClassBrowserOptions().displayFilter = filter;
-        // Note: (ph#) The next statement is about to clobber the global setting with the current parser setting.
-        // eg. If you have just set"Display inheritance info" to yes, it'll now be clobbered with
-        // the old parser settings with which the plugin started. What the ... ?
-        // This means there is no way to reparse a project with inheritance when the previous parser
-        // did not have it already set.
-        // The only way out is to set "Show inheritance" before starting CodeBlocks.
-        // DeleteParser() calls SetParser() calls ClassBrowser->SetParser() calls WriteOptions()
-        //-m_Parser->WriteOptions();  removed to avoid clobbering settings
-        s_ClassBrowserCaller = wxString::Format("%s:%d",__FUNCTION__, __LINE__);
+        m_Parser->WriteOptions(/*classbrowserOnly=*/true);  //(svn 13612 bkport)
+
         UpdateClassBrowserView();
     }
     else
@@ -1041,15 +1034,15 @@ void ClassBrowser::OnSearch(cb_unused wxCommandEvent& event)
     if (locker_result != wxMUTEX_NO_ERROR)
     {
         /// requeuing is deprecated for now.
-        // lock failed, do not block the UI thread, call back when idle
-        ////if (GetIdleCallbackHandler()->IncrQCallbackOk(lockFuncLine))
-        ////    GetIdleCallbackHandler()->QueueCallback(this, &ClgdCompletion::ParseFunctionsAndFillToolbar);
+        //- lock failed, do not block the UI thread, call back when idle
+        //- if (GetIdleCallbackHandler()->IncrQCallbackOk(lockFuncLine))
+        //-     GetIdleCallbackHandler()->QueueCallback(this, &ClgdCompletion::ParseFunctionsAndFillToolbar);
         return;
     }
     else /*lock succeeded*/
     {
-        ////s_TokenTreeMutex_Owner = wxString::Format("%s %d",__FUNCTION__, __LINE__); /*record owner*/
-        ////GetIdleCallbackHandler()->ClearQCallbackPosn(lockFuncLine);
+        //- s_TokenTreeMutex_Owner = wxString::Format("%s %d",__FUNCTION__, __LINE__); /*record owner*/
+        // -GetIdleCallbackHandler()->ClearQCallbackPosn(lockFuncLine);
     }
 
     TokenTree* tree = m_Parser->GetTokenTree();
@@ -1403,9 +1396,9 @@ CCTreeItem* ClassBrowser::GetItemPtr(wxTreeItemId ItemId)
     return static_cast <CCTreeItem*> (tcd->m_MirrorNode);
 }
 
-////////////////////////////////////////////////////////////////////////
+// ----------------------------------------------------------------------------
 // The methods below are called from the (classbrowserbuilderthread) worker thread using CallAfter()
-////////////////////////////////////////////////////////////////////////
+// ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 void ClassBrowser::BuildTreeStartOrStop(bool start, EThreadJob threadJob)
 // ----------------------------------------------------------------------------

@@ -58,10 +58,10 @@ ConfigPanel::ConfigPanel( wxWindow* parent, wxWindowID id, const wxPoint& pos, c
     // JumpTracker max rows
 	wxBoxSizer* bSizer712;
 	bSizer712 = new wxBoxSizer( wxHORIZONTAL );
-	m_staticText712 = new wxStaticText( this, wxID_ANY, _("Max number of Browse marks and Jump entries\n(Requires a restart)."), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText712 = new wxStaticText( this, wxID_ANY, _("Max number of Browse marks and Jump entries\n  ( Requires a restart of CodeBlocks when changed )."), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText712->Wrap( -1 );
 	bSizer712->Add( m_staticText712, 0, wxALL|wxEXPAND, 5 );
-	Cfg_JumpTrackerSpinCtrl = new wxSpinCtrl( this, wxID_ANY,"20", wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 10, 100, 20);
+	Cfg_JumpTrackerSpinCtrl = new wxSpinCtrl( this, wxID_ANY,"20", wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 20, 100, 20);
 	bSizer712->Add( Cfg_JumpTrackerSpinCtrl, 0, wxALL, 5 );
 	bSizer712->Add( 0, 50, 1, wxEXPAND, 5 );
 	bSizer3->Add( bSizer712, 0, wxEXPAND, 5 );

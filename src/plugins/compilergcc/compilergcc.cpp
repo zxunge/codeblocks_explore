@@ -1915,9 +1915,17 @@ int CompilerGCC::RunSingleFile(const wxString& filename)
 
 bool CompilerGCC::ExecutableExists(cbProject* prj)
 {
-    // A project is not mandatory to execute the file in the editor
+    // A project is not mandatory to execute the file in the editor, but
+    // then at least one editor (not the "Start here" one) must be active
     if (!prj)
-        return true;
+    {
+        EditorManager* edmgr = Manager::Get()->GetEditorManager();
+        EditorBase* currentEditor = edmgr->GetActiveEditor();
+        if (!currentEditor)
+            return false;
+
+        return (currentEditor != edmgr->GetEditor(_("Start here")));
+    }
 
     // Get target name
     const wxString activeTarget(prj->GetActiveBuildTarget());

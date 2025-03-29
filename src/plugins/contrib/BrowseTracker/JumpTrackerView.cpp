@@ -67,7 +67,7 @@ JumpTrackerView::~JumpTrackerView()
 {
     //dtor
     if (FindEventHandler(this))
-        Manager::Get()->GetAppWindow()->RemoveEventHandler(this);   //(ph 2021/04/17)
+        Manager::Get()->GetAppWindow()->RemoveEventHandler(this);
 }
 // ----------------------------------------------------------------------------
 wxWindow* JumpTrackerView::CreateControl(wxWindow* parent)
@@ -94,7 +94,7 @@ bool JumpTrackerView::HasFeature(Feature::Enum feature) const
 }
 
 // ----------------------------------------------------------------------------
-void JumpTrackerView::AppendAdditionalMenuItems(wxMenu &menu)
+void JumpTrackerView::AppendAdditionalMenuItems(cb_unused wxMenu &menu)
 // ----------------------------------------------------------------------------
 {
 }

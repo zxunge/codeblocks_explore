@@ -1931,8 +1931,6 @@ void ProcessLanguageClient::LSP_Initialize(cbProject* pProject)
 
             wxString filename = pcbEd->GetFilename();
             UpdateCompilationDatabase(pProject, filename);
-            // cancel the changed time so clangd doesnt get restarted;
-////            SetCompileCommandsChangedTime(false);
         }
     }//for
 
@@ -2034,11 +2032,13 @@ bool ProcessLanguageClient::LSP_DidOpen(cbEditor* pcbEd)
 
     wxString strText = pCntl->GetText();
     //-const char* pText = strText.mb_str();        //works //(2022/01/17)
-    const char* pText = strText.ToUTF8();           //ollydbg  220115 did not solve illegal utf8char
+    //const char* pText = strText.ToUTF8();         //ollydbg  220115 did not solve illegal utf8char
 
     writeClientLog(StdString_Format("<<< LSP_DidOpen:%s", docuri.c_str()) );
 
-    try { DidOpen(docuri, string_ref(pText, strText.Length()) ); }
+    //-try { DidOpen(docuri, string_ref(pText, strText.Length()) ); }
+    try { DidOpen(docuri, string_ref(strText.ToUTF8().data(), strText.Length()) ); } //christo 1518
+
     catch(std::exception &err)
     {
         //printf("read error -> %s\nread -> %s\n ", e.what(), read.c_str());
@@ -3888,6 +3888,16 @@ void ProcessLanguageClient::UpdateCompilationDatabase(cbProject* pProject, wxStr
         // There's likely no such database there; just wasting time.
         return;
     }
+    //(christo 2024/06/26)
+    if(m_compileCommandsPopulated)
+    {
+        if ( m_CompileCommandsFiles.end() != std::find(m_CompileCommandsFiles.begin(), m_CompileCommandsFiles.end(), filename))
+        {
+            return;
+        }
+        jdb = json::array();
+    }
+    //(christo 2024/06/26)end
 
     // create compilation database 'compile_commands.json' from project files.
     // If compile_commands.json already exists, use it to insert project file data.
@@ -3906,15 +3916,19 @@ void ProcessLanguageClient::UpdateCompilationDatabase(cbProject* pProject, wxStr
     // If the file does not belong to a project, add it to proxy project
     // compile_commands.json file so Clangd can find  and parse it.
 
-    std::fstream jsonFile;           //("out.json", std::ofstream::in | std::ofstream::out);
-    json jdb = json::array();        //create the main array
+    //(christo 2024/06/26)
+    //-std::fstream jsonFile;           //("out.json", std::ofstream::in | std::ofstream::out);
+    //-json jdb = json::array();        //create the main array
+    //(christo 2024/06/26)end
 
     wxString editorProjectDotCBP = pProject->GetFilename();
     wxString compileCommandsFullPath = wxPathOnly(editorProjectDotCBP) + "\\compile_commands.json";
     if (not platform::windows) compileCommandsFullPath.Replace("\\","/");
-    if (wxFileExists(compileCommandsFullPath)) switch(1)
+    //-if (wxFileExists(compileCommandsFullPath)) switch(1) //(christo 2024/06/26)
+    if ((jdb.size() == 0) && wxFileExists(compileCommandsFullPath)) switch(1)   //(christo 2024/06/26)
     {
         default:
+        std::fstream jsonFile;           //("out.json", std::ofstream::in | std::ofstream::out); //(christo 2024/06/26)
         jsonFile.open (compileCommandsFullPath.ToStdString(), std::ofstream::in);
         if (not jsonFile.is_open())
         {
@@ -3964,12 +3978,13 @@ void ProcessLanguageClient::UpdateCompilationDatabase(cbProject* pProject, wxStr
         }//endfor pfBuildTargets
     }
     if (not pTarget)
-    {   CCLogger::Get()->Log(_("Clangd_client found no usable project target."));
+    {
+        CCLogger::Get()->Log(_("Clangd_client found no usable project target."));
         CCLogger::Get()->DebugLog(_("Clangd_client found no usable project target."));
         return;
     }
     else
-        CCLogger::Get()->DebugLog(_("Clangd_client using project target: " + pTarget->GetTitle()));
+        CCLogger::Get()->DebugLog(wxString::Format(_("Clangd_client using project target: %s"), pTarget->GetTitle()));
 
     Compiler* pCompiler = CompilerFactory::GetCompiler(pTarget->GetCompilerID());
     wxString masterPath = pCompiler ? pCompiler->GetMasterPath() : "";
@@ -3994,6 +4009,7 @@ void ProcessLanguageClient::UpdateCompilationDatabase(cbProject* pProject, wxStr
 
     if (fileCount)
     {
+        std::fstream jsonFile; //(christo 2024/06/26)
         jsonFile.open (compileCommandsFullPath.ToStdString(), std::ofstream::out | std::ofstream::trunc);
         if (not jsonFile.is_open())
         {
@@ -4005,17 +4021,15 @@ void ProcessLanguageClient::UpdateCompilationDatabase(cbProject* pProject, wxStr
             // update compile_commands.json file
             jsonFile << jdb; //write file json object
             jsonFile.close();
-
-            // This code un-needed after clangd version 12
-////        // updates before LSP is initialized should not set the LSP restart timer.
-////        // File opens after initialization have compile_commands already set
-////        // so filecount will be zero.
-////        // Ergo, the restart timer is set only when a new file is opened that
-////        // was not previously added to compile_commands.json
-////            if (GetLSP_Initialized())
-////                SetCompileCommandsChangedTime(true);
         }
-    }
+        //(christo 2024/06/26)
+        if(m_compileCommandsPopulated)
+        {
+            jdb.clear();
+            m_CompileCommandsFiles.emplace_back(std::move(filename));
+        }
+        //(christo 2024/06/26)end
+    }//endif filecount
 
 }//end UpdateCompilationDatabase()
 // ----------------------------------------------------------------------------

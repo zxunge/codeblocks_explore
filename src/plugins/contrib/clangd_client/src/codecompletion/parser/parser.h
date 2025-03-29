@@ -16,7 +16,7 @@
 #include <wx/timer.h>
 #include <wx/treectrl.h>
 
-////#include <cbthreadpool.h>
+//-unused- #include <cbthreadpool.h>
 #include <sdk_events.h>
 #include <cbplugin.h>
 #include <cbstyledtextctrl.h>
@@ -257,8 +257,11 @@ protected:
 
     /** read Parser options from configure file */
     void ReadOptions() override;
+
     /** write Parse options to configure file */
-    void WriteOptions() override;
+    void WriteOptions(bool classbrowserOnly=false) override;              //(svn 13612 bkport)
+
+    void ShowGlobalChangeAnnoyingMsg(); // From svn 13612 //(svn 13612 bkport)
 
 private:
 

@@ -236,11 +236,11 @@ void wxsTreeCtrl::OnBuildCreatingCode()
 /*! \brief    Build the control preview.
  *
  * \param parent wxWindow*    The parent window.
- * \param flags long                    The control flags.
+ * \param _Flags long                    The control flags.
  * \return wxObject*                     The constructed control.
  *
  */
-wxObject *wxsTreeCtrl::OnBuildPreview(wxWindow *Parent, long Flags)
+wxObject *wxsTreeCtrl::OnBuildPreview(wxWindow *Parent, long _Flags)
 {
     int             i, n;
     wxsImageList   *ilist;
@@ -314,21 +314,21 @@ wxObject *wxsTreeCtrl::OnBuildPreview(wxWindow *Parent, long Flags)
     // save the hide-root flag
     top.Unset();
 
-    return SetupWindow(preview, Flags);
+    return SetupWindow(preview, _Flags);
 }
 
 /*! \brief Enumerate the control's properties.
  *
- * \param flags long    The control flags.
+ * \param _Flags long    The control flags.
  * \return void
  *
  */
-void wxsTreeCtrl::OnEnumWidgetProperties(cb_unused long Flags)
+void wxsTreeCtrl::OnEnumWidgetProperties(cb_unused long _Flags)
 {
     static wxString      sImageNames[128];
     static const wxChar *pImageNames[128];
 
-    wxString            ss, tt;
+    wxString            ss;
     wxArrayString       aa;
 
     // find available image lists and store them in our local static arrays
@@ -367,7 +367,7 @@ void wxsTreeCtrl::FindAllImageLists(wxArrayString &aNames)
     int             i, n;
     wxsItemResData  *res;
     wxsTool         *tool;
-    wxString        ss, tt;
+    wxString        ss;
 
     // start the list with a chance to de-select any old list
     aNames.Clear();
@@ -397,7 +397,7 @@ void wxsTreeCtrl::FindAllImageLists(wxArrayString &aNames)
 void wxsTreeCtrl::UpdateTreeItemList()
 {
     int              i, n;
-    wxString         ss, tt;
+    wxString         ss;
     wxArrayString    aa;
 
     // first 2 items are always our var name and the name of the image list

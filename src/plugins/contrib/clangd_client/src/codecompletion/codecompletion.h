@@ -276,15 +276,6 @@ private:
      */
     void OnCCDebugLogger(CodeBlocksThreadEvent& event);
 
-    /** fill the tokens with correct preprocessor directives, such as #i will prompt "if", "include"
-     * @param tknStart the start of the completed word
-     * @param tknEnd current caret location
-     * @param ed current active editor
-     * @param tokens results storing all the suggesting texts
-     */
-     // Currently unused, may be useful for the future 2023/04/21
-    void DoCodeCompletePreprocessor(int tknStart, int tknEnd, cbEditor* ed, std::vector<CCToken>& tokens);
-
     /** ContextMenu->Insert-> declaration/implementation */
     int DoClassMethodDeclImpl();
 
@@ -521,7 +512,7 @@ private:
         };
 
         ImageId() : id(Last), size(-1) {}
-        ImageId(Id id, int size) : id(id), size(size) {}
+        ImageId(Id _id, int _size) : id(_id), size(_size) {}
 
         bool operator==(const ImageId &o) const
         {
@@ -701,7 +692,7 @@ private:
     // This is set to false if ClgdCompletion ctor completes ok.
     // Forces CB restart when clangd_client first enabled
     bool m_CC_initDeferred = true;
-    // Set to true when the old CodeCompletion plugin is enabled
+    // Set to true when the legacy CodeCompletion plugin is enabled
     bool m_OldCC_enabled = true;
     // Initial condition of Clangd_Client at ctor (enabled/disabled);
     bool m_ctorClientStartupStatusEnabled = false;
@@ -720,7 +711,7 @@ private:
     bool IsOldCCEnabled()
     // ----------------------------------------------------------------------------
     {
-        // Determine if old CodeCompletion is enabled and its plugin lib exists.
+        // Determine if legacy CodeCompletion is enabled and its plugin lib exists.
         // Note: if the .conf has no info for the plugin CB reports it disabled but runs it anyway.
         wxString sep = wxFILE_SEP_PATH;
         bool bCCLibExists = false;
@@ -731,7 +722,7 @@ private:
         bCCLibExists =  wxFileName(ccLibFolder + sep + oldCC_PluginLibName).Exists();
         if (not bCCLibExists) // Check if local plugins folder has codecompletion lib
         {
-            wxString ccLibFolder = ConfigManager::GetPluginsFolder(false); //Get local plugins folder
+            ccLibFolder = ConfigManager::GetPluginsFolder(false); //Get local plugins folder
             bCCLibExists = wxFileName(ccLibFolder + sep + oldCC_PluginLibName).Exists();
         }
         return (oldCC_enabled and bCCLibExists);

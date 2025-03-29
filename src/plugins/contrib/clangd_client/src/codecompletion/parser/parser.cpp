@@ -55,6 +55,7 @@
 #include "../IdleCallbackHandler.h"
 #include "../gotofunctiondlg.h"
 #include "ccmanager.h"
+#include "annoyingdialog.h"     //(svn 13612 bkport)
 
 #ifndef CB_PRECOMP
     #include "editorbase.h"
@@ -375,7 +376,7 @@ void Parser::AddBatchParse(const StringList& filenames)
     if (m_BatchTimer.IsRunning())
         m_BatchTimer.Stop();
 
-    //// CC_LOCKER_TRACK_P_MTX_LOCK(ParserCommon::s_ParserMutex) deprecated
+    // CC_LOCKER_TRACK_P_MTX_LOCK(ParserCommon::s_ParserMutex) deprecated
     // Nothing here that needs to be locked now
 
     if (m_BatchParseFiles.empty())
@@ -392,7 +393,7 @@ void Parser::AddBatchParse(const StringList& filenames)
         m_BatchTimer.Start(ParserCommon::PARSER_BATCHPARSE_TIMER_DELAY, wxTIMER_ONE_SHOT);
     }
 
-    //// CC_LOCKER_TRACK_P_MTX_UNLOCK(ParserCommon::s_ParserMutex) deprecated
+    // CC_LOCKER_TRACK_P_MTX_UNLOCK(ParserCommon::s_ParserMutex) deprecated
 }
 // ----------------------------------------------------------------------------
 void Parser::ClearBatchParse()
@@ -401,7 +402,7 @@ void Parser::ClearBatchParse()
     if (m_BatchTimer.IsRunning())
         m_BatchTimer.Stop();
 
-    //// CC_LOCKER_TRACK_P_MTX_LOCK(ParserCommon::s_ParserMutex) deprecated
+    // CC_LOCKER_TRACK_P_MTX_LOCK(ParserCommon::s_ParserMutex) deprecated
     // Nothing here that needs to be locked now
 
     if (m_BatchParseFiles.empty())
@@ -411,7 +412,7 @@ void Parser::ClearBatchParse()
 
     m_ParserState = ParserCommon::ptUndefined;
 
-    //// CC_LOCKER_TRACK_P_MTX_UNLOCK(ParserCommon::s_ParserMutex) deprecated
+    // CC_LOCKER_TRACK_P_MTX_UNLOCK(ParserCommon::s_ParserMutex) deprecated
 }
 
 // ----------------------------------------------------------------------------
@@ -767,9 +768,9 @@ void Parser::LSP_ParseDocumentSymbols(wxCommandEvent& event)
     return;
 }
 // ** Debugging routine to print json contents **
-//// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 //void Parser::LSP_WalkTextDocumentSymbolResponse(json& jref, wxString& filename, size_t level)
-//// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 //{
 //    size_t indentLevel = level?level:1;
 //    LogManager* pLogMgr = Manager::Get()->GetLogManager();
@@ -1344,6 +1345,7 @@ void Parser::OnLSP_BatchTimer(cb_unused wxTimerEvent& event)
     }
     else
     {
+        pClient->SetCompileCommandsPopulated(); //(christo 2024/06/26)
         wxString msg = "Background file parsing queue now empty.";
         CCLogger::Get()->DebugLog(msg);
         msg = wxString::Format("LSP Server is processing %zu remaining files.", pClient->LSP_GetServerFilesParsingCount() );
@@ -1443,29 +1445,92 @@ void Parser::ReadOptions()
 
 }
 // ----------------------------------------------------------------------------
-void Parser::WriteOptions()
+void Parser::WriteOptions(bool classBrowserOnly)
 // ----------------------------------------------------------------------------
 {
+     // Global settings bug fix (svn 13612 bkport)
+     //https://forums.codeblocks.org/index.php/topic,25955 Hiccups while typing
+
+    // Assemble status to determine if a Parser or Project changed a global setting.
+    ProjectManager* pPrjMgr = Manager::Get()->GetProjectManager();
+    ParseManager*   pParseMgr = m_pParseManager;
+    ParserBase*     pTempParser = pParseMgr->GetTempParser();
+    ParserBase*     pClosingParser = pParseMgr->GetClosingParser(); //see ParseManger::DeleteParser()
+    ParserBase*     pCurrentParser = &(pParseMgr->GetParser());     //aka: m_parser
+
+    bool isClosingParser  = pClosingParser != nullptr;
+    bool isClosingProject = pPrjMgr->IsClosingProject(); wxUnusedVar(isClosingProject);
+    bool isTempParser     = pTempParser == pCurrentParser;
+    bool globalOptionChanged = pParseMgr->GetOptsChangedByParser() or pParseMgr->GetOptsChangedByProject();
+
+    // **Debugging**
+    //bool useSmartSense    = m_Options.useSmartSense;
+    //bool parseWhileTyping =  m_Options.whileTyping;
+
+    // If this is a parser close, do not allow CB global settings writes.
+    bool allowGlobalUpdate = false;
+
+    // When not closing parser and CB globals were changed, write to .conf
+    if ( (not isClosingParser) and globalOptionChanged)
+        allowGlobalUpdate = true;
+
+    // Closing parsers are not allowed to write to CB globals.
+    //  CB Globals were already written when when user changed the setting.
+    if (isClosingParser) allowGlobalUpdate = false;
+
+    // If no changes to the CB globals, no need to write
+    if (not globalOptionChanged)
+        allowGlobalUpdate = false; // no global settings have changed
+
+    // Don't write CB globals if this is for ClassBrowser options only.
+    if (classBrowserOnly) allowGlobalUpdate = false;
+
     ConfigManager* cfg = Manager::Get()->GetConfigManager("clangd_client");
 
-    // Page "clangd_client"
-    cfg->Write(_T("/use_SmartSense"),                m_Options.useSmartSense);
-    cfg->Write(_T("/while_typing"),                  m_Options.whileTyping);
+    // ----------------------------------------------------------------------------
+    // set any user changed CB global settings for CodeCompletion (svn 13612 bkport)
+    // ----------------------------------------------------------------------------
+    if (allowGlobalUpdate)
+    {
+        // Page "Code Completion"
+        cfg->Write(_T("/use_SmartSense"),                m_Options.useSmartSense);
+        cfg->Write(_T("/while_typing"),                  m_Options.whileTyping);
 
-    // Page "C / C++ parser"
-    cfg->Write(_T("/parser_follow_local_includes"),  m_Options.followLocalIncludes);
-    cfg->Write(_T("/parser_follow_global_includes"), m_Options.followGlobalIncludes);
-    cfg->Write(_T("/want_preprocessor"),             m_Options.wantPreprocessor);
-    cfg->Write(_T("/parse_complex_macros"),          m_Options.parseComplexMacros);
-    cfg->Write(_T("/platform_check"),                m_Options.platformCheck);
-    cfg->Write(_T("/LLVM_MasterPath"),               m_Options.LLVM_MasterPath);
-    cfg->Write(_T("/logClangdClient_check"),         m_Options.logClangdClientCheck);
-    cfg->Write(_T("/logClangdServer_check"),         m_Options.logClangdServerCheck);
-    cfg->Write(_T("/logPluginInfo_check"),           m_Options.logPluginInfoCheck);
-    cfg->Write(_T("/logPluginDebug_check"),          m_Options.logPluginDebugCheck);
-    cfg->Write(_T("/lspMsgsFocusOnSave_check"),      m_Options.lspMsgsFocusOnSaveCheck);
-    cfg->Write(_T("/lspMsgsClearOnSave_check"),      m_Options.lspMsgsClearOnSaveCheck);
-    cfg->Write(_T("/useCompletionIcons_check"),      m_Options.useCompletionIconsCheck);
+        // Page "clangd_client"
+        cfg->Write(_T("/use_SmartSense"),                m_Options.useSmartSense);
+        cfg->Write(_T("/while_typing"),                  m_Options.whileTyping);
+
+        // Page "C / C++ parser"
+        cfg->Write(_T("/parser_follow_local_includes"),  m_Options.followLocalIncludes);
+        cfg->Write(_T("/parser_follow_global_includes"), m_Options.followGlobalIncludes);
+        cfg->Write(_T("/want_preprocessor"),             m_Options.wantPreprocessor);
+        cfg->Write(_T("/parse_complex_macros"),          m_Options.parseComplexMacros);
+        cfg->Write(_T("/platform_check"),                m_Options.platformCheck);
+        cfg->Write(_T("/LLVM_MasterPath"),               m_Options.LLVM_MasterPath);
+        cfg->Write(_T("/logClangdClient_check"),         m_Options.logClangdClientCheck);
+        cfg->Write(_T("/logClangdServer_check"),         m_Options.logClangdServerCheck);
+        cfg->Write(_T("/logPluginInfo_check"),           m_Options.logPluginInfoCheck);
+        cfg->Write(_T("/logPluginDebug_check"),          m_Options.logPluginDebugCheck);
+        cfg->Write(_T("/lspMsgsFocusOnSave_check"),      m_Options.lspMsgsFocusOnSaveCheck);
+        cfg->Write(_T("/lspMsgsClearOnSave_check"),      m_Options.lspMsgsClearOnSaveCheck);
+        cfg->Write(_T("/useCompletionIcons_check"),      m_Options.useCompletionIconsCheck);
+
+        ShowGlobalChangeAnnoyingMsg(); // warn user to re-parse projects
+
+    }
+    // clean out any parser flags used to guard CB global settings
+    pParseMgr->SetOptsChangedByParser(nullptr);  //(ph 2025/02/12)
+    pParseMgr->SetOptsChangedByProject(nullptr); //(ph 2025/02/12)
+    pParseMgr->SetClosingParser(nullptr);
+    // if currrent parser == TempParser, force it to update, else the next
+    // display of the setting dialog will show TempParser stale cached settings
+    // which it obtained when CB initialized.
+    if (isTempParser) pTempParser->ReadOptions();
+    // end fix from (svn 13612 bkport)
+
+    // -------------------------------------------
+    // set any user changed ClassBrowser settings
+    // -------------------------------------------
 
     // Page "Symbol browser"
     cfg->Write(_T("/browser_show_inheritance"),      m_BrowserOptions.showInheritance);
@@ -1479,6 +1544,35 @@ void Parser::WriteOptions()
     // Page "Documentation":
     // m_Options.storeDocumentation will be written by DocumentationPopup
 }
+// ----------------------------------------------------------------------------
+void Parser::ShowGlobalChangeAnnoyingMsg()
+// ----------------------------------------------------------------------------
+{
+    //(svn 13612 bkport)
+    // Fix from svn 13612 to avoid overwritting global settings on project close
+    // Tell the user that global changes are not applied until projects are reparsed.
+
+    if (Manager::IsAppShuttingDown()) return;
+    ParseManager* pParseMgr = m_pParseManager;
+
+    // Get number of active parsers (from m_ParserList)
+    std::unordered_map<cbProject*,ParserBase*>* pActiveParsers = pParseMgr->GetActiveParsers();
+
+    if (pActiveParsers->size() > 0)
+    {
+        wxString warningMsg;
+        warningMsg = _("The global settings change does not take effect\n"
+                       "until the projects are either reloaded or reparsed.\n\n"
+                       "You can selectively reparse projects by right clicking\n"
+                       "on the project title in the Workspace tree and selecting\n"
+                       "'Reparse current project'.");
+
+        AnnoyingDialog dlg(_("Global settings warning"), warningMsg, wxART_WARNING,
+                           AnnoyingDialog::OK);
+        dlg.ShowModal();
+    }//endif size
+}//end ShowGlobalChangeAnnoyingMsg
+
 // ----------------------------------------------------------------------------
 void Parser::OnLSP_DiagnosticsResponse(wxCommandEvent& event)
 // ----------------------------------------------------------------------------
@@ -2393,11 +2487,6 @@ void Parser::OnLSP_DeclDefResponse(wxCommandEvent& event)
             int linenum  = resultObj["range"]["start"]["line"].get<int>();;
             int charPosn = resultObj["range"]["start"]["character"].get<int>();
 
-            // jump over 'file://' prefix
-////            if (platform::windows) filenameStr = filenameStr.Mid(8); else filenameStr = filenameStr.Mid(6);
-////            filenameStr.Replace("%3A", ":");
-////            if (platform::windows)
-////                filenameStr.Replace("/", "\\");
             filenameStr = fileUtils.FilePathFromURI(filenameStr);
             EditorManager* pEdMgr = Manager::Get()->GetEditorManager();
 
@@ -2466,7 +2555,7 @@ void Parser::OnLSP_DeclDefResponse(wxCommandEvent& event)
         //{"jsonrpc":"2.0","id":"textDocument/declaration","error":{"code":-32600,"message":"not indexed"}}
         wxString errorMsg = wxString::Format("error:%s", pJson->at("error").dump() );
         CCLogger::Get()->DebugLog(errorMsg);
-        cbMessageBox(_("LSP returned \"" + errorMsg + "\""), _("Warning"), wxICON_WARNING);
+        cbMessageBox(wxString::Format(_("LSP returned \"%s\""), errorMsg), _("Warning"), wxICON_WARNING);
         return;
     }//end if declaration/definition error
 }//end OnLSP_DeclDefResponse
@@ -2910,7 +2999,7 @@ void Parser::OnLSP_CompletionPopupHoverResponse(wxCommandEvent& event)
         wxString contentsValue = GetwxUTF8Str(contents.at("value").get<std::string>());
 
         //#if wxCHECK_VERSION(3,1,5) //3.1.5 or higher
-        //// wx3.0 cannot produce the utf8 string
+        // wx3.0 cannot produce the utf8 string
         //wxString badBytes =  "\xE2\x86\x92" ; //Wierd chars in hover results
         //contentsValue.Replace(badBytes, "Type:"); // asserts on wx3.0
         //#endif
@@ -2988,7 +3077,7 @@ void Parser::OnLSP_HoverResponse(wxCommandEvent& event, std::vector<ClgdCCToken>
         hoverString.Replace("\n\n", "\n"); //remove double newlines
         wxArrayString vHoverInfo = GetArrayFromString(hoverString, "\n");
 
-        //// **Debugging** show incoming data
+        // **Debugging** show incoming data
         //{
         //    #warning comment out this **Debugging**
         //     LogManager* pLogMgr = Manager::Get()->GetLogManager();
@@ -3056,7 +3145,7 @@ void Parser::OnLSP_HoverResponse(wxCommandEvent& event, std::vector<ClgdCCToken>
             }
         }//endfor vHoverInfo
 
-        //// **Debugging** show what is going to be passed to ccManager
+        // **Debugging** show what is going to be passed to ccManager
         //#warning comment out this **Debugging**
         //if (v_HoverTokens.size())
         //{
